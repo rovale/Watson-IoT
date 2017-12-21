@@ -23,70 +23,70 @@ int publishInterval = 60000;
 
 void connectToNetwork()
 {
-  delay(10);
-  Serial.println();
-  Serial.print("Connecting to ");
-  Serial.print(WIFI_SSID);
+    delay(10);
+    Serial.println();
+    Serial.print("Connecting to ");
+    Serial.print(WIFI_SSID);
 
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    delay(500);
-    Serial.print(".");
-  }
+    while (WiFi.status() != WL_CONNECTED)
+    {
+        delay(500);
+        Serial.print(".");
+    }
 
-  Serial.print("connected at address ");
-  Serial.println(WiFi.localIP());
+    Serial.print("connected at address ");
+    Serial.println(WiFi.localIP());
 }
 
 void onReceive(char *topic, byte *payload, unsigned int length)
 {
-  Serial.print("Message arrived [");
-  Serial.print(topic);
-  Serial.print("] ");
+    Serial.print("Message arrived [");
+    Serial.print(topic);
+    Serial.print("] ");
 
-  for (int i = 0; i < length; i++)
-  {
-    Serial.print((char)payload[i]);
-  }
-  Serial.println();
+    for (int i = 0; i < length; i++)
+    {
+        Serial.print((char)payload[i]);
+    }
+    Serial.println();
 
-  if (strcmp(responseTopic, topic) == 0)
-  {
-      return;
-  }
+    if (strcmp(responseTopic, topic) == 0)
+    {
+        return;
+    }
 
-  if (strcmp(rebootTopic, topic) == 0)
-  {
-      Serial.println("Rebooting...");
-      ESP.restart();
-  }
+    if (strcmp(rebootTopic, topic) == 0)
+    {
+        Serial.println("Rebooting...");
+        ESP.restart();
+    }
 
-  if (strcmp(updateTopic, topic) == 0)
-  {
-      handleUpdate(payload);
-  }
+    if (strcmp(updateTopic, topic) == 0)
+    {
+        handleUpdate(payload);
+    }
 }
 
 void handleUpdate(byte *payload)
 {
     StaticJsonBuffer<300> jsonBuffer;
-    JsonObject &root = jsonBuffer.parseObject((char *)payload);
+    JsonObject &root = jsonBuffer.parseObject(payload);
     if (!root.success())
     {
         Serial.println("handleUpdate: payload parse FAILED");
         return;
     }
+
     Serial.println("handleUpdate payload:");
     root.prettyPrintTo(Serial);
     Serial.println();
 
     JsonObject &d = root["d"];
     JsonArray &fields = d["fields"];
-    for (JsonArray::iterator it = fields.begin(); it != fields.end(); ++it)
+    for (auto &field : fields)
     {
-        JsonObject &field = *it;
         const char *fieldName = field["field"];
         if (strcmp(fieldName, "metadata") == 0)
         {
@@ -124,64 +124,64 @@ void initManagedDevice()
 
 boolean connectToMqqtBroker()
 {
-  Serial.print("Connecting to MQTT broker...");
-  if (client.connect(clientId, authMethod, token))
-  {
-    Serial.println("connected");
-    initManagedDevice();
-  }
-  else
-  {
-    Serial.print("failed, rc=");
-    Serial.println(client.state());
-  }
+    Serial.print("Connecting to MQTT broker...");
+    if (client.connect(clientId, authMethod, token))
+    {
+        Serial.println("connected");
+        initManagedDevice();
+    }
+    else
+    {
+        Serial.print("failed, rc=");
+        Serial.println(client.state());
+    }
 
-  return client.connected();
+    return client.connected();
 }
 
 void setup()
 {
-  Serial.begin(115200);
-  connectToNetwork();
-  client.setServer(mqttServer, 1883);
-  client.setCallback(onReceive);
+    Serial.begin(115200);
+    connectToNetwork();
+    client.setServer(mqttServer, 1883);
+    client.setCallback(onReceive);
 }
 
 void loop()
 {
-  unsigned long currentMillis = millis();
+    unsigned long currentMillis = millis();
 
-  if (!client.connected())
-  {
-    if (currentMillis - lastReconnectAttemptAt >= 5000)
+    if (!client.connected())
     {
-      lastReconnectAttemptAt = currentMillis;
+        if (currentMillis - lastReconnectAttemptAt >= 5000)
+        {
+            lastReconnectAttemptAt = currentMillis;
 
-      if (connectToMqqtBroker())
-      {
-        lastReconnectAttemptAt = 0;
-      }
+            if (connectToMqqtBroker())
+            {
+                lastReconnectAttemptAt = 0;
+            }
+        }
     }
-  }
-  else
-  {
-    client.loop();
-
-    if (currentMillis - lastPublishMessageAt >= publishInterval)
+    else
     {
-      lastPublishMessageAt = currentMillis;
+        client.loop();
 
-      //int rssi = WiFi.RSSI();
-      //publish(rssiTopic, String(rssi));
+        if (currentMillis - lastPublishMessageAt >= publishInterval)
+        {
+            lastPublishMessageAt = currentMillis;
 
-      String payload = "{\"d\":{\"uptime\":";
-      payload += currentMillis / 1000;
-      payload += "}}";
-  
-      Serial.print("Sending payload: ");
-      Serial.println(payload);
-  
-      client.publish(publishTopic, (char *)payload.c_str());
+            //int rssi = WiFi.RSSI();
+            //publish(rssiTopic, String(rssi));
+
+            String payload = "{\"d\":{\"uptime\":";
+            payload += currentMillis / 1000;
+            payload += "}}";
+
+            Serial.print("Sending payload: ");
+            Serial.println(payload);
+
+            client.publish(publishTopic, (char *)payload.c_str());
+        }
     }
-  }
 }
