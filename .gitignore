@@ -1,0 +1,4 @@
+**/build/
+
+Esp8266/libraries/ArduinoJson/*
+Esp8266/libraries/PubSubClient/*
