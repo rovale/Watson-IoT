@@ -21,8 +21,8 @@ const char publishTopic[] =  "iot-2/evt/status/fmt/json";
 
 void onReceive(char* topic, byte* payload, unsigned int payloadLength);
 
-WiFiClient wifiClient;
-PubSubClient client(mqttServer, 1883, onReceive, wifiClient);
+WiFiClientSecure wifiClient;
+PubSubClient client(mqttServer, 8883, onReceive, wifiClient);
 
 unsigned long lastReconnectAttemptAt = 0;
 unsigned long lastPublishMessageAt = 0;
