@@ -1,4 +1,8 @@
 #include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
+#include <WiFiUdp.h>
+#include <ArduinoOTA.h>
+
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <Secrets.h>
@@ -8,18 +12,56 @@ char authMethod[] = "use-token-auth";
 char token[] = TOKEN;
 char clientId[] = "d:" ORG ":" DEVICE_TYPE ":" DEVICE_ID;
 
-const char publishTopic[] = "iot-2/evt/status/fmt/json";
 const char responseTopic[] = "iotdm-1/response";
-const char manageTopic[] = "iotdevice-1/mgmt/manage";
-const char updateTopic[] = "iotdm-1/device/update";
-const char rebootTopic[] = "iotdm-1/mgmt/initiate/device/reboot";
+const char updateTopic[] =   "iotdm-1/device/update";
+const char rebootTopic[] =   "iotdm-1/mgmt/initiate/device/reboot";
 
-WiFiClient wiFiClient;
-PubSubClient client(wiFiClient);
+const char manageTopic[] =   "iotdevice-1/mgmt/manage";
+const char publishTopic[] =  "iot-2/evt/status/fmt/json";
+
+void onReceive(char* topic, byte* payload, unsigned int payloadLength);
+
+WiFiClient wifiClient;
+PubSubClient client(mqttServer, 1883, onReceive, wifiClient);
 
 unsigned long lastReconnectAttemptAt = 0;
 unsigned long lastPublishMessageAt = 0;
 int publishInterval = 60000;
+
+void initializeOTA()
+{
+    // Port defaults to 8266
+    // ArduinoOTA.setPort(8266);
+
+    // Hostname defaults to esp8266-[ChipID]
+    // ArduinoOTA.setHostname("myesp8266");
+
+    // No authentication by default
+    // ArduinoOTA.setPassword((const char *)"123");
+
+    ArduinoOTA.onStart([]() {
+        Serial.println("Start");
+    });
+
+    ArduinoOTA.onEnd([]() {
+        Serial.println("\nEnd");
+    });
+
+    ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+        Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+    });
+
+    ArduinoOTA.onError([](ota_error_t error) {
+        Serial.printf("Error[%u]: ", error);
+        if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+        else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+        else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+        else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+        else if (error == OTA_END_ERROR) Serial.println("End Failed");
+    });
+
+    ArduinoOTA.begin();
+}
 
 void connectToNetwork()
 {
@@ -101,7 +143,7 @@ void handleUpdate(byte *payload)
     }
 }
 
-void initManagedDevice()
+void initializeManagedDevice()
 {
     client.subscribe(rebootTopic);
     client.subscribe(responseTopic);
@@ -125,10 +167,11 @@ void initManagedDevice()
 boolean connectToMqqtBroker()
 {
     Serial.print("Connecting to MQTT broker...");
+    Serial.print(clientId);
     if (client.connect(clientId, authMethod, token))
     {
         Serial.println("connected");
-        initManagedDevice();
+        initializeManagedDevice();
     }
     else
     {
@@ -142,9 +185,9 @@ boolean connectToMqqtBroker()
 void setup()
 {
     Serial.begin(115200);
+
+    initializeOTA();
     connectToNetwork();
-    client.setServer(mqttServer, 1883);
-    client.setCallback(onReceive);
 }
 
 void loop()
@@ -165,6 +208,8 @@ void loop()
     }
     else
     {
+        ArduinoOTA.handle();
+        
         client.loop();
 
         if (currentMillis - lastPublishMessageAt >= publishInterval)
