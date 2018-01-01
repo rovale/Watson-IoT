@@ -1,10 +1,17 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
 #include <WiFiUdp.h>
+
 #include <ArduinoOTA.h>
 
 #include <PubSubClient.h>
+
 #include <ArduinoJson.h>
+
+#include <Wire.h>
+#include <Adafruit_BMP085.h>
+#include <DHT.h>
+
 #include <Secrets.h>
 
 char mqttServer[] = ORG ".messaging.internetofthings.ibmcloud.com";
@@ -24,9 +31,13 @@ void onReceive(char* topic, byte* payload, unsigned int payloadLength);
 WiFiClientSecure wifiClient;
 PubSubClient client(mqttServer, 8883, onReceive, wifiClient);
 
+Adafruit_BMP085 bmp;
+DHT dht(D3, DHT11);
+
 unsigned long lastReconnectAttemptAt = 0;
+
+int publishInterval = 300000;
 unsigned long lastPublishMessageAt = 0;
-int publishInterval = 60000;
 
 void initializeOTA()
 {
@@ -159,9 +170,34 @@ void initializeManagedDevice()
 
     char buff[300];
     root.printTo(buff, sizeof(buff));
-    Serial.println("publishing device metadata:");
     Serial.println(buff);
-    client.publish(manageTopic, buff);
+    Serial.println(client.publish(manageTopic, buff));
+}
+
+void publish()
+{
+  int rssi = WiFi.RSSI();
+  float temperature  = bmp.readTemperature();
+  int pressure = bmp.readPressure();
+  float humidity = dht.readHumidity();
+  float temperature2 = dht.readTemperature();
+  int air = analogRead(A0);
+  
+  StaticJsonBuffer<300> jsonBuffer;
+  JsonObject &root = jsonBuffer.createObject();
+  JsonObject &d = root.createNestedObject("d");
+  d["rssi"] = rssi;
+  d["uptime"] = millis() / 1000;
+  d["temperature"] = temperature;
+  d["temperature2"] = temperature2;
+  d["pressure"] = pressure;
+  d["humidity"] = humidity;
+  d["air"] = air;
+  
+  char payload[300];
+  root.printTo(payload, sizeof(payload));  
+  Serial.println(payload);
+  Serial.println(client.publish(publishTopic, payload, 300));
 }
 
 boolean connectToMqqtBroker()
@@ -172,6 +208,7 @@ boolean connectToMqqtBroker()
     {
         Serial.println("connected");
         initializeManagedDevice();
+        publish();
     }
     else
     {
@@ -185,6 +222,9 @@ boolean connectToMqqtBroker()
 void setup()
 {
     Serial.begin(115200);
+
+    bmp.begin();
+    dht.begin();
 
     initializeOTA();
     connectToNetwork();
@@ -215,18 +255,7 @@ void loop()
         if (currentMillis - lastPublishMessageAt >= publishInterval)
         {
             lastPublishMessageAt = currentMillis;
-
-            //int rssi = WiFi.RSSI();
-            //publish(rssiTopic, String(rssi));
-
-            String payload = "{\"d\":{\"uptime\":";
-            payload += currentMillis / 1000;
-            payload += "}}";
-
-            Serial.print("Sending payload: ");
-            Serial.println(payload);
-
-            client.publish(publishTopic, (char *)payload.c_str());
+            publish();
         }
     }
 }
