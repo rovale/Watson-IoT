@@ -1,0 +1,144 @@
+[
+    {
+        "id": "1be879a1.cb7da6",
+        "type": "tab",
+        "label": "Watson IoT",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "b346c468.fc9d18",
+        "type": "wiotp out",
+        "z": "1be879a1.cb7da6",
+        "authType": "d",
+        "qs": "false",
+        "qsDeviceId": "",
+        "deviceKey": "4705ed21.7da084",
+        "deviceType": "",
+        "deviceId": "",
+        "event": "status",
+        "format": "json",
+        "qos": "",
+        "name": "",
+        "x": 770.1001205444336,
+        "y": 38,
+        "wires": []
+    },
+    {
+        "id": "ca285c13.f3133",
+        "type": "http request",
+        "z": "1be879a1.cb7da6",
+        "name": "",
+        "method": "GET",
+        "ret": "txt",
+        "url": "http://localhost:3000/api/status",
+        "tls": "",
+        "x": 279.00000762939453,
+        "y": 36.99997615814209,
+        "wires": [
+            [
+                "2fde4593.f8acfa"
+            ]
+        ]
+    },
+    {
+        "id": "43860caa.38a3b4",
+        "type": "inject",
+        "z": "1be879a1.cb7da6",
+        "name": "",
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "repeat": "300",
+        "crontab": "",
+        "once": false,
+        "x": 112,
+        "y": 36.999977111816406,
+        "wires": [
+            [
+                "ca285c13.f3133"
+            ]
+        ]
+    },
+    {
+        "id": "2fde4593.f8acfa",
+        "type": "json",
+        "z": "1be879a1.cb7da6",
+        "name": "",
+        "pretty": false,
+        "x": 421.0000190734863,
+        "y": 36.9999885559082,
+        "wires": [
+            [
+                "c491dc2f.c4963"
+            ]
+        ]
+    },
+    {
+        "id": "dbc1c825.694578",
+        "type": "debug",
+        "z": "1be879a1.cb7da6",
+        "name": "",
+        "active": true,
+        "console": "false",
+        "complete": "false",
+        "x": 789.1001205444336,
+        "y": 86.99999618530273,
+        "wires": []
+    },
+    {
+        "id": "c491dc2f.c4963",
+        "type": "change",
+        "z": "1be879a1.cb7da6",
+        "name": "",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "{\"d\": {\t    \"userMode\": payload.\"user mode\",\t    \"clockProgram\": payload.\"clock program\",\t    \"control\": payload.\"control\",\t    \"switchpoint\": payload.\"current switchpoint\",\t    \"temperature\": payload.\"in house temp\",\t    \"setpoint\": payload.\"temp setpoint\",\t    \"override\": payload.\"temp override\",\t    \"overrideSetpoint\": payload.\"temp override temp setpoint\",\t    \"manualSetpoint\": payload.\"temp manual setpoint\",\t    \"outdoorTemperature\": payload.\"outdoor temp\"    \t}}",
+                "tot": "jsonata"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 584.1000747680664,
+        "y": 37.00003719329834,
+        "wires": [
+            [
+                "dbc1c825.694578",
+                "b346c468.fc9d18"
+            ]
+        ]
+    },
+    {
+        "id": "4705ed21.7da084",
+        "type": "wiotp-credentials",
+        "z": "",
+        "name": "",
+        "org": "36b7ps",
+        "serverName": "36b7ps.messaging.internetofthings.ibmcloud.com",
+        "devType": "SensorBox",
+        "devId": "Box2",
+        "keepalive": "60",
+        "cleansession": true,
+        "tls": "9ba925a2.db8508",
+        "usetls": false
+    },
+    {
+        "id": "9ba925a2.db8508",
+        "type": "tls-config",
+        "z": "",
+        "name": "",
+        "cert": "",
+        "key": "",
+        "ca": "",
+        "certname": "",
+        "keyname": "",
+        "caname": "",
+        "verifyservercert": false
+    }
+]
